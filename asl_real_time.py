@@ -5,39 +5,35 @@ from keras.models import load_model
 from cvzone.HandTrackingModule import HandDetector
 import time
 
-# ✅ Load the trained model
 model_path = "C:/Users/adith/OneDrive/Desktop/ASL/my_model.h5"
 try:
     model = load_model(model_path, compile=False)
-    print("✅ Model loaded successfully!")
+    print("Model loaded successfully!")
 except Exception as e:
-    print("❌ Error loading model:", e)
+    print("Error loading model:", e)
     exit()
 
-# ✅ Define class labels
 class_labels = {i: chr(65 + i) for i in range(26)}  # A-Z mapping
 
-# ✅ Initialize webcam and hand detector
 cap = cv2.VideoCapture(0)
 detector = HandDetector(maxHands=1)  # Detect one hand at a time
 imgSize = 400  # Match training image size
 
 if not cap.isOpened():
-    print("❌ Error: Could not open webcam.")
+    print("Error: Could not open webcam.")
     exit()
 
-print("🎥 Webcam activated! Press 'q' to exit.")
+print("Webcam activated! Press 'q' to exit.")
 
-# ✅ Sentence formation variables
+# Sentence formation variables
 sentence = ""
 current_word = ""
 last_predicted_letter = None
 last_detection_time = time.time()
-cooldown_period = 2.5  # ⏳ Increased cooldown time
-confirmation_threshold = 7  # 📌 Require 7 consistent detections
+cooldown_period = 2.5  # Increased cooldown time
+confirmation_threshold = 7  # Require 7 consistent detections
 confirmation_counter = 0
 
-# ✅ Set up window size
 frame_width = 1200
 frame_height = 800
 cv2.namedWindow("ASL Detection", cv2.WINDOW_NORMAL)
@@ -46,12 +42,12 @@ cv2.resizeWindow("ASL Detection", frame_width, frame_height)
 while True:
     ret, frame = cap.read()
     if not ret:
-        print("❌ Error: Failed to capture frame.")
+        print("Error: Failed to capture frame.")
         break
 
-    frame = cv2.flip(frame, 1)  # ✅ Mirrored webcam feed for natural interaction
-    hands, _ = detector.findHands(frame, draw=False)  # Detect hands (no drawing)
-    imgWhite = np.ones((imgSize, imgSize, 3), np.uint8) * 255  # White background
+    frame = cv2.flip(frame, 1)  
+    hands, _ = detector.findHands(frame, draw=False) 
+    imgWhite = np.ones((imgSize, imgSize, 3), np.uint8) * 255
     predicted_letter = ""
 
     if hands:
@@ -70,11 +66,11 @@ while True:
         lmList = (lmList - [x_min, y_min]) * scale
         lmList += (imgSize - np.array([w, h]) * scale) / 2
 
-        # ✅ Draw landmarks on white background
+        # Draw landmarks on white background
         for x, y in lmList.astype(int):
             cv2.circle(imgWhite, (x, y), 8, (0, 0, 0), -1)
 
-        # ✅ Connect landmarks
+        # Connect landmarks
         connections = [[0, 1], [1, 2], [2, 3], [3, 4],
                        [0, 5], [5, 6], [6, 7], [7, 8],
                        [0, 9], [9, 10], [10, 11], [11, 12],
@@ -84,22 +80,17 @@ while True:
         for p1, p2 in connections:
             cv2.line(imgWhite, tuple(lmList[p1].astype(int)), tuple(lmList[p2].astype(int)), (0, 0, 0), 4)
 
-        # ✅ Convert to grayscale
         imgWhite_gray = cv2.cvtColor(imgWhite, cv2.COLOR_BGR2GRAY)
-
-        # ✅ Preprocess image for model
         img_input = cv2.resize(imgWhite_gray, (128, 128))
         img_input = img_input / 255.0
         img_input = np.expand_dims(img_input, axis=-1)
         img_input = np.expand_dims(img_input, axis=0)
 
         try:
-            # ✅ Perform prediction
             prediction = model.predict(img_input)
             predicted_label = np.argmax(prediction)
             predicted_letter = class_labels.get(predicted_label, "")
 
-            # ✅ Confirm letter before accepting
             if predicted_letter == last_predicted_letter:
                 confirmation_counter += 1
             else:
@@ -110,20 +101,20 @@ while True:
                 if current_time - last_detection_time > cooldown_period:
                     current_word += predicted_letter
                     last_detection_time = current_time
-                    print(f"🔍 Confirmed Letter: {predicted_letter}")
+                    print(f"Confirmed Letter: {predicted_letter}")
                 confirmation_counter = 0
 
             last_predicted_letter = predicted_letter
 
         except Exception as e:
-            print(f"❌ Error during prediction: {e}")
+            print(f"Error during prediction: {e}")
             break
 
-        # ✅ Show the processed white image (top-right corner)
+        # Show the processed white image (top-right corner)
         imgWhite_resized = cv2.resize(imgWhite, (200, 200))
         cv2.imshow("Landmarks", imgWhite_resized)
 
-    # ✅ Sentence formation logic
+    # Sentence formation logic
     key = cv2.waitKey(1) & 0xFF
 
     if key == 32:  # Spacebar → End word
@@ -135,14 +126,14 @@ while True:
         if current_word:
             sentence += current_word
         sentence = sentence.strip() + "."
-        print(f"📝 Final Sentence: {sentence}")
+        print(f"Final Sentence: {sentence}")
         current_word = ""
     
     elif key == 8:  # Backspace → Remove last letter
         if current_word:
             current_word = current_word[:-1]
 
-    # ✅ Improved Sentence Display Overlay
+    # Improved Sentence Display Overlay
     height, width, _ = frame.shape
     overlay = frame.copy()
     cv2.rectangle(overlay, (0, height - 120), (width, height), (0, 0, 0), -1)  # Larger black background for text
@@ -155,14 +146,14 @@ while True:
     cv2.putText(frame, f"Word: {current_word}", (50, height - 40),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2, cv2.LINE_AA)
 
-    # ✅ Show the main frame with text overlay
+    # Show the main frame with text overlay
     cv2.imshow("ASL Detection", frame)
 
     # Exit when 'q' is pressed
     if key == ord('q'):
         break
 
-# ✅ Cleanup
+# Cleanup
 cap.release()
 cv2.destroyAllWindows()
-print("🔴 Webcam closed.")
+print("Webcam closed.")
